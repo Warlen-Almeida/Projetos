@@ -5,6 +5,7 @@ import seaborn as sn
 import matplotlib.pyplot as plt
 from scipy import stats
 import plotly.graph_objects as go
+from matplotlib import gridspec 
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
@@ -48,12 +49,22 @@ def boxplot(col1):
   fig.show()
 
 def hist(data, x):  
-  fig = px.histogram(data, x=x, color="level_value", template = 'plotly_dark', barmode = 'group', color_discrete_sequence=['#00688B', '#DAA520'])
+  fig = px.histogram(data, x=x, color="level_value", template = 'plotly_dark', barmode = 'group', color_discrete_sequence=['#e1cc55', '#00224e'])
   fig.update_layout(
     paper_bgcolor = '#242424',
     plot_bgcolor = '#242424',
     autosize = True)
   fig.show()
+
+def layout(graph):
+  graph.update_layout(
+      paper_bgcolor = '#242424',
+      plot_bgcolor = '#242424',
+      autosize = True
+    )
+  graph.show()
+ 
+
 
 #--------------------------------------------------------------------------------------
 
@@ -76,16 +87,24 @@ df = df.drop(['index'], axis = 1)
 
 df_bath = agrupamento(df,'bathrooms')
 df_grade = agrupamento(df,'grade')
+df_view = agrupamento(df,'view')
+df_bedrooms = agrupamento(df,'bedrooms')
+df_condition = agrupamento(df,'condition')
+df_zipcode = agrupamento(df,'zipcode')
 
-df_zipcode = df.groupby(['zipcode']).median().reset_index()
 df_zipcode = df_zipcode.sort_values(by = ['price'])
-region = df_zipcode['zipcode'].unique()
+zipcode_98039 = df[df.zipcode == '98039']
+zipcode_98039.describe()
 
+df_zipcode['price'].mean()
+
+region = df_zipcode['zipcode'].unique()
 for i in region:
   lista = df[df['zipcode']==i].index.tolist()
   num = df[df.zipcode == i].loc[:,'price'].median()
   for j in lista:  
      df.loc[j, 'level_value'] = 'Alto' if  df[df.zipcode == i].loc[j,'price'] > num else 'Baixo'
+
 
 df['mes_ano'] = df['date'].dt.strftime('%Y-%m')
 by_date = df[['price', 'mes_ano']].groupby('mes_ano').median().reset_index()
@@ -116,26 +135,6 @@ boxplot('bathrooms')
 boxplot('view')  
 boxplot('floors')
 boxplot('bedrooms') 
-fig = px.box(df, x = 'price', template = 'plotly_dark', labels = {'price' : 'Preço'}, color_discrete_sequence=['#e1cc55', '#00224e'])
-fig.update_layout(
-    paper_bgcolor = '#242424',
-    plot_bgcolor = '#242424',
-    autosize = True
-  )
-fig.show()
-
-
-mapa_oficial = px.scatter_mapbox(df, lat='lat',lon='long', hover_name = 'price', 
-                                 color = 'Quartis_price', 
-                                 labels = {'Quartis_price' : 'Níveis de preço'}, 
-                                 title = 'Mapa com todas as casas, dividido por cores que variam do nivel 1 ao 5',
-                                 template = 'plotly_dark',
-                                 
-                                 color_continuous_scale=px.colors.sequential.Cividis_r,
-                                 size_max=10,zoom=9)
-mapa_oficial.update_layout(mapbox_style = 'carto-darkmatter')
-mapa_oficial.update_layout(height = 700, width = 900, margin = {'r':0, 't':45, 'l':0, 'b':0})
-mapa_oficial.show() 
 
 fig = px.bar(df_bath, x="bathrooms", 
              y='price', 
@@ -146,40 +145,8 @@ fig = px.bar(df_bath, x="bathrooms",
                      'bathrooms': 'Banheiros'}, 
              title ='Preço Mediano das casas de acordo com o número de Banheiros'
  )
-fig.update_layout(
-    paper_bgcolor = '#242424',
-    plot_bgcolor = '#242424',
-    autosize = True)
-fig.show()
-
-fig = px.bar(df_grade, x="grade", 
-             y='price', 
-             template = 'plotly_dark',
-             color_discrete_sequence=['#e1cc55', '#00224e'], 
-             labels={
-                     'price': 'Preço das casas',
-                      'grade': 'avaliação'}, 
-             title ='Preço Mediano das casas de acordo com o nivel da avaliação'
- )
-fig.update_layout(
-    paper_bgcolor = '#242424',
-    plot_bgcolor = '#242424',
-    autosize = True)
-fig.show()
-
-
-fig = px.scatter(df, x="sqft_living", y='price', template = 'plotly_dark',labels={
-    'price': 'Preço das casas',
-    'sqft_living': 'Tamanho interno por metro quadrado'},
-    color_discrete_sequence=['#e1cc55', '#00224e'],
-    title ='Preço Mediano das casas de acordo com a área interna das casas'
- )
-fig.update_layout(
-    paper_bgcolor = '#242424',
-    plot_bgcolor = '#242424',
-    autosize = True)
-fig.show()
-
+layout(fig)
+    
 hist(df,'grade')
 hist(df,'bathrooms')  
 hist(df,'bedrooms') 
@@ -188,55 +155,10 @@ hist(df,'waterfront')
 hist(df,'view') 
 hist(df,'Renoveted?')
 hist(df,'Basement?')
+hist(df,'sazonal')
+
+
  
-fig = px.histogram(df, x='grade', color="level_value", 
-                   template = 'plotly_dark', 
-                   barmode = 'group', 
-                   color_discrete_sequence=['#e1cc55', '#123570'], 
-                   labels = {'grade' : 'Avaliação', 'level_value': 'valor da casa'}, title = 'Quantidade de casas acima e abaixo da mediana de acordo com o nivel da avaliação ')
-fig.update_layout(
-    paper_bgcolor = '#242424',
-    plot_bgcolor = '#242424',
-    width = 900,
-    autosize = True)
-fig.show()
-
-fig = px.histogram(df, x='bathrooms', color="level_value", 
-                   template = 'plotly_dark', 
-                   barmode = 'group', 
-                   color_discrete_sequence=['#e1cc55', '#123570'], 
-                   labels = {'bathrooms' : 'Número de Banheiros', 'level_value': 'Valor da Casa'}, title = 'Quantidade de casas acima e abaixo da mediana de acordo com o número de banheiros')
-fig.update_layout(
-    paper_bgcolor = '#242424',
-    plot_bgcolor = '#242424',
-    width = 900,
-    autosize = True)
-fig.show()
-
-fig = px.histogram(df, x='bedrooms', color="level_value", 
-                   template = 'plotly_dark', 
-                   barmode = 'group', 
-                   color_discrete_sequence=['#e1cc55', '#123570'], 
-                   labels = {'bedrooms' : 'Número de quartos', 'level_value': 'Valor da Casa'}, title = 'Quantidade de casas acima e abaixo da mediana de acordo com o número de Quartos')
-fig.update_layout(
-    paper_bgcolor = '#242424',
-    plot_bgcolor = '#242424',
-    width = 900,
-    autosize = True)
-fig.show()
-
-fig = px.histogram(df, x='view', color="level_value", 
-                   template = 'plotly_dark', 
-                   barmode = 'group', 
-                   color_discrete_sequence=['#e1cc55', '#123570'], 
-                   labels = {'view' : 'Nível da Vista', 'level_value': 'Valor da Casa'}, title = 'Quantidade de casas acima e abaixo da mediana de acordo com o nível da vista da residência')
-fig.update_layout(
-    paper_bgcolor = '#242424',
-    plot_bgcolor = '#242424',
-    width = 900,
-    autosize = True)
-fig.show()
-
 fig = px.line(by_date_Baixo, x="mes_ano", y='price', title='Variação de preço das casas abaixo da média em suas regiões, durante o periodo de Maio de 2014 até maio de 2015')
 fig.show()
 fig = px.line(by_date_Alto, x="mes_ano", y='price', title='Variação de preço das casas acima da média em suas regiões, durante o periodo de Maio de 2014 até maio de 2015')
@@ -249,19 +171,133 @@ fig.show()
 fig = px.line(by_yrbuilt_Baixo, x="yr_built", y='price', title='Variação de preço de todas as casas abaixo da mediana de suas regiões, de acordo com seu ano de contrução')
 fig.show()
 
+fig = px.bar(df_grade, x="grade", 
+             y='price', 
+             template = 'plotly_dark',
+             color_discrete_sequence=['#e1cc55', '#00224e'], 
+             labels={
+                     'price': 'Preço das casas',
+                      'grade': 'avaliação'}, 
+             title ='Preço Mediano das casas de acordo com o nivel da avaliação'
+ )
+layout(fig)
+
+fig = px.bar(df_view, x="view", 
+             y='price', 
+             template = 'plotly_dark',
+             color_discrete_sequence=['#e1cc55', '#00224e'], 
+             labels={
+                     'price': 'Preço das casas',
+                      'view': 'Vista da casa'}, 
+             title ='Preço Mediano das casas de acordo com o nivel da vista da casa'
+ )
+layout(fig)
+
+fig = px.bar(df_bedrooms, x="bedrooms", 
+             y='price', 
+             template = 'plotly_dark',
+             color_discrete_sequence=['#e1cc55', '#00224e'], 
+             labels={
+                     'price': 'Preço das casas',
+                      'bedrooms': 'Número de quartos da casa'}, 
+             title ='Preço Mediano das casas de acordo com o Número de quartos da casa'
+ )
+layout(fig)
+
+fig = px.bar(df_condition, x="condition", 
+             y='price', 
+             template = 'plotly_dark',
+             color_discrete_sequence=['#e1cc55', '#00224e'], 
+             labels={
+                     'price': 'Preço das casas',
+                     'condition': 'Nível da condição'}, 
+             title ='Preço Mediano das casas de acordo com o nível da condição da casa'
+ )
+layout(fig)
+
+fig = px.scatter(df, x="sqft_living", y='price', trendline = 'ols', trendline_color_override = '#892721', template = 'plotly_dark',labels={
+    'price': 'Preço das casas',
+    'sqft_living': 'Tamanho interno por metro quadrado'},
+    color_discrete_sequence=['#e1cc55', '#00224e'],
+    title ='Preço Mediano das casas de acordo com a área interna das casas'
+ )
+layout(fig) 
+
+fig = px.box(df, x = 'price', 
+              template = 'plotly_dark', 
+              labels = {'price' : 'Preço'}, 
+              color_discrete_sequence=['#e1cc55', '#00224e'])
+layout(fig)
+
+df_waterfront = agrupamento(df,'water_view')
+
+
+fig = px.bar(df_waterfront, x="water_view", 
+             y='price', 
+             template = 'plotly_dark',
+             color_discrete_sequence=['#e1cc55', '#00224e'], 
+             labels={
+                     'price': 'Preço das casas',
+                     'water_view': 'Possui vista para o mar'}, 
+             title ='Preço Mediano considerando se a casa tem vista para o mar'
+ )
+layout(fig)
+
+
+mapa_oficial = px.scatter_mapbox(df, lat='lat',lon='long', hover_name = 'price', 
+                                 color = 'Quartis_price', 
+                                 labels = {'Quartis_price' : 'Níveis de preço'}, 
+                                 title = 'Mapa com todas as casas, dividido por cores que variam do nivel 1 ao 5',
+                                 template = 'plotly_dark',
+                                 color_continuous_scale=px.colors.sequential.Cividis_r,
+                                 size_max=10,zoom=9)
+mapa_oficial.update_layout(mapbox_style = 'carto-darkmatter')
+mapa_oficial.update_layout(height = 700, width = 900, margin = {'r':0, 't':45, 'l':0, 'b':0})
+mapa_oficial.show() 
+
+fig = px.histogram(df, x='grade', color="level_value", 
+                   template = 'plotly_dark', 
+                   barmode = 'group', 
+                   color_discrete_sequence=['#e1cc55', '#123570'], 
+                   labels = {'grade' : 'Avaliação', 'level_value': 'valor da casa'}, title = 'Quantidade de casas acima e abaixo da mediana de acordo com o nivel da avaliação ')
+layout(fig)
+
+fig = px.histogram(zipcode_98039, x='grade', color="sazonal", 
+                   template = 'plotly_dark', 
+                   barmode = 'group', 
+                   color_discrete_sequence=['#e1cc55', '#123570'], 
+                   labels = {'grade' : 'Avaliação', 'level_value': 'valor da casa'}, title = 'Quantidade de casas acima e abaixo da mediana de acordo com o nivel da avaliação ')
+layout(fig)
+
+
+fig = px.histogram(df, x='bathrooms', color="level_value", 
+                   template = 'plotly_dark', 
+                   barmode = 'group', 
+                   color_discrete_sequence=['#e1cc55', '#123570'], 
+                   labels = {'bathrooms' : 'Número de Banheiros', 'level_value': 'Valor da Casa'}, title = 'Quantidade de casas acima e abaixo da mediana de acordo com o número de banheiros')
+layout(fig)
+
+fig = px.histogram(df, x='bedrooms', color="level_value", 
+                   template = 'plotly_dark', 
+                   barmode = 'group', 
+                   color_discrete_sequence=['#e1cc55', '#123570'], 
+                   labels = {'bedrooms' : 'Número de quartos', 'level_value': 'Valor da Casa'}, title = 'Quantidade de casas acima e abaixo da mediana de acordo com o número de Quartos')
+layout(fig)
+
+fig = px.histogram(df, x='view', color="level_value", 
+                   template = 'plotly_dark', 
+                   barmode = 'group', 
+                   color_discrete_sequence=['#e1cc55', '#123570'], 
+                   labels = {'view' : 'Nível da Vista', 'level_value': 'Valor da Casa'}, title = 'Quantidade de casas acima e abaixo da mediana de acordo com o nível da vista da residência')
+layout(fig)
+
 fig = px.line(by_date, x="mes_ano", 
               y='price',
               color_discrete_sequence=['#e1cc55', '#123570'], 
               template = 'plotly_dark',
               labels = {'price': 'Preço das Casas'},
               title='Variação de preço das casas abaixo da média em suas regiões, durante o periodo de Maio de 2014 até maio de 2015')
-fig.update_layout(
-    paper_bgcolor = '#242424',
-    plot_bgcolor = '#242424',
-    width = 1100,
-    autosize = True)
-fig.show()
-
+layout(fig)
 #--------------------------------------------------------------------------------------
 
 df = df.drop(['lat'], axis = 1)
