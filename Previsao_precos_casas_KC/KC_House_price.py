@@ -26,6 +26,7 @@ from sklearn.model_selection import cross_val_score, KFold
 from scipy.stats import shapiro
 from scipy.stats import f_oneway
 from statsmodels.stats.multicomp import MultiComparison
+import pickle
 
 df = pd.read_csv('kc_house_data.csv')
 
@@ -38,6 +39,15 @@ def yesno(data):
 def agrupamento(data, col):
   aux = data[['price', col]].groupby(col).median().reset_index()  
   return(aux)
+
+def contagem(data, col):
+  aux = data[['id', col]].groupby(col).count().reset_index()
+  aux = aux.rename(columns={'id': 'Acima'}) 
+  # aux['percent'] = (aux['id'] / 
+  #                 aux['id'].sum()) * 100 
+  # print(aux)                
+  return(aux)
+
 
 def correlacao(data,variavel):
   ziptest = data[data.zipcode == variavel]
@@ -79,24 +89,23 @@ df['Basement?'] = yesno(df['sqft_basement'])
 df['water_view'] = yesno(df['waterfront'])
 df['Renoveted?'] = yesno(df['yr_renovated'])
 
+df['Quartis_price'] = df['price'].apply(lambda x: 1 if x <= 323000 else
+                                                2 if (x > 323000) and (x <= 450000) else
+                                                3 if (x > 450000) and (x <= 645000) else
+                                                4 if (x>645000) and (x < 1127500) else 5)  
+
+df['sqft_level'] = df['sqft_living'].apply(lambda x: 1 if x <= 1430 else 
+                                                     2 if (x > 1430) and (x <= 1920) else 
+                                                     3 if (x > 1920) and (x <= 2550) else 
+                                                     4 if (x > 2550) and (x <= 4230) else 5)
+
 for i in range(len(df)):
   if df.loc[i,'bedrooms'] < 1 or df.loc[i,'bathrooms'] < 1:
     df = df.drop(i)
 df = df.drop(15870).reset_index()	  	  
 df = df.drop(['index'], axis = 1)
 
-df_bath = agrupamento(df,'bathrooms')
-df_grade = agrupamento(df,'grade')
-df_view = agrupamento(df,'view')
-df_bedrooms = agrupamento(df,'bedrooms')
-df_condition = agrupamento(df,'condition')
 df_zipcode = agrupamento(df,'zipcode')
-
-df_zipcode = df_zipcode.sort_values(by = ['price'])
-zipcode_98039 = df[df.zipcode == '98039']
-zipcode_98039.describe()
-
-df_zipcode['price'].mean()
 
 region = df_zipcode['zipcode'].unique()
 for i in region:
@@ -104,6 +113,63 @@ for i in region:
   num = df[df.zipcode == i].loc[:,'price'].median()
   for j in lista:  
      df.loc[j, 'level_value'] = 'Alto' if  df[df.zipcode == i].loc[j,'price'] > num else 'Baixo'
+
+df_zipcode = df_zipcode.sort_values(by = ['price'])
+df_zipcode['price'].mean()
+df_zipcode1 = df_zipcode
+zipcode_98039 = df[df.zipcode == '98039']
+zipcode_98039.describe()
+for i in range(len(df_zipcode1)):
+  if df_zipcode1.loc[i,'price'] < 501607:
+    df_zipcode1 = df_zipcode1.drop(i)
+df_zipcode1 = df_zipcode1['zipcode'].values
+
+df['zipcode_class'] = 'abaixo'
+for j in df_zipcode1:
+  for i in range (len(df)):
+    if df.loc[i,'zipcode'] == j:
+      df.loc[i,'zipcode_class'] = 'acima'
+    
+df['zipcode_class'].unique()
+
+df_bath = agrupamento(df,'bathrooms')
+df_grade = agrupamento(df,'grade')
+df_view = agrupamento(df,'view')
+df_bedrooms = agrupamento(df,'bedrooms')
+df_condition = agrupamento(df,'condition')
+
+df_high_price = df[df.Quartis_price > 3]
+
+df.columns
+
+df_countbath = contagem(df_high_price,'bathrooms')
+df_countbed = contagem(df_high_price,'bedrooms')
+df_countgrade = contagem(df_high_price, 'grade')
+df_countview = contagem(df_high_price, 'view')
+df_countwater = contagem(df_high_price, 'water_view')
+df_countcond = contagem(df_high_price, 'condition')
+
+df['level_value'].unique()
+df_acima_zipcode = df[df.level_value == 'Alto']
+df_baixo_zipcode = df[df.level_value == 'Baixo']
+
+
+df_countbath1 = contagem(df_acima_zipcode,'bathrooms')
+df_countbed1 = contagem(df_acima_zipcode,'bedrooms')
+df_countgrade1 = contagem(df_acima_zipcode, 'grade')
+df_countview1 = contagem(df_acima_zipcode, 'view')
+df_countwater1 = contagem(df_acima_zipcode, 'water_view')
+df_countcond1 = contagem(df_acima_zipcode, 'condition')
+
+df_countbath2 = contagem(df_baixo_zipcode,'bathrooms')
+df_countbed2 = contagem(df_baixo_zipcode,'bedrooms')
+df_countgrade2 = contagem(df_baixo_zipcode, 'grade')
+df_countview2 = contagem(df_baixo_zipcode, 'view')
+df_countwater2 = contagem(df_baixo_zipcode, 'water_view')
+df_countcond2 = contagem(df_baixo_zipcode, 'condition')
+
+# df_high_price.count() #5369
+# df_acima_zipcode.count() #10674
 
 
 df['mes_ano'] = df['date'].dt.strftime('%Y-%m')
@@ -118,11 +184,7 @@ by_yrbuilt_Baixo = df[df.level_value == 'Baixo'][['price', 'yr_built']].groupby(
 df['sazonal'] = df['mes_ano'].apply(lambda x: 'prima-verão' if (x < '2014-08') or (x >  '2015-03') else
                                               'Out-inver')
 
-df['Quartis_price'] = df['price'].apply(lambda x: 1 if x <= 323000 else
-                                                2 if (x > 323000) and (x <= 450000) else
-                                                3 if (x > 450000) and (x <= 645000) else
-                                                4 if (x>645000) and (x < 1127500) else 5)  
-
+df.to_csv('kc_definitivo.csv', index=False) 
 
 #--------------------------------------------------------------------------------------
 
@@ -226,7 +288,15 @@ layout(fig)
 fig = px.box(df, x = 'price', 
               template = 'plotly_dark', 
               labels = {'price' : 'Preço'}, 
-              color_discrete_sequence=['#e1cc55', '#00224e'])
+              color_discrete_sequence=['#e1cc55', '#00224e'],
+              )
+layout(fig)
+
+fig = px.box(df, x = 'sqft_living', 
+              template = 'plotly_dark', 
+              labels = {'sqft_living' : 'Área interna'}, 
+              color_discrete_sequence=['#e1cc55', '#00224e'],
+              )
 layout(fig)
 
 df_waterfront = agrupamento(df,'water_view')
@@ -252,7 +322,7 @@ mapa_oficial = px.scatter_mapbox(df, lat='lat',lon='long', hover_name = 'price',
                                  color_continuous_scale=px.colors.sequential.Cividis_r,
                                  size_max=10,zoom=9)
 mapa_oficial.update_layout(mapbox_style = 'carto-darkmatter')
-mapa_oficial.update_layout(height = 700, width = 900, margin = {'r':0, 't':45, 'l':0, 'b':0})
+mapa_oficial.update_layout(height = 700, width = 750, margin = {'r':0, 't':45, 'l':0, 'b':0})
 mapa_oficial.show() 
 
 fig = px.histogram(df, x='grade', color="level_value", 
@@ -262,19 +332,22 @@ fig = px.histogram(df, x='grade', color="level_value",
                    labels = {'grade' : 'Avaliação', 'level_value': 'valor da casa'}, title = 'Quantidade de casas acima e abaixo da mediana de acordo com o nivel da avaliação ')
 layout(fig)
 
-fig = px.histogram(zipcode_98039, x='grade', color="sazonal", 
-                   template = 'plotly_dark', 
-                   barmode = 'group', 
-                   color_discrete_sequence=['#e1cc55', '#123570'], 
-                   labels = {'grade' : 'Avaliação', 'level_value': 'valor da casa'}, title = 'Quantidade de casas acima e abaixo da mediana de acordo com o nivel da avaliação ')
-layout(fig)
 
 
 fig = px.histogram(df, x='bathrooms', color="level_value", 
                    template = 'plotly_dark', 
-                   barmode = 'group', 
+                   barmode = 'group',
+                   width= 800, 
                    color_discrete_sequence=['#e1cc55', '#123570'], 
                    labels = {'bathrooms' : 'Número de Banheiros', 'level_value': 'Valor da Casa'}, title = 'Quantidade de casas acima e abaixo da mediana de acordo com o número de banheiros')
+fig.update_traces(textposition='inside',texttemplate='%{text:.2s}')
+layout(fig)
+
+fig = px.histogram(df, x='sqft_level', color="level_value", 
+                   template = 'plotly_dark', 
+                   barmode = 'group', 
+                   color_discrete_sequence=['#e1cc55', '#123570'], 
+                   labels = {'sqft_level' : 'Nível do tamanho interno', 'level_value': 'Valor da Casa'}, title = 'Quantidade de casas acima e abaixo da mediana de acordo com o nível do tamanho interno')
 layout(fig)
 
 fig = px.histogram(df, x='bedrooms', color="level_value", 
@@ -286,11 +359,16 @@ layout(fig)
 
 fig = px.histogram(df, x='view', color="level_value", 
                    template = 'plotly_dark', 
-                   barmode = 'group', 
+                   barmode = 'group',
+                   width=750, 
                    color_discrete_sequence=['#e1cc55', '#123570'], 
-                   labels = {'view' : 'Nível da Vista', 'level_value': 'Valor da Casa'}, title = 'Quantidade de casas acima e abaixo da mediana de acordo com o nível da vista da residência')
+                   labels = {'view' : 'Nível da Vista', 'level_value': 'Valor da Casa'}, title = 'Quantidade de casas acima e abaixo da mediana de acordo com o nível da vista')
 layout(fig)
 
+
+
+
+df['Quartis_price']
 fig = px.line(by_date, x="mes_ano", 
               y='price',
               color_discrete_sequence=['#e1cc55', '#123570'], 
@@ -299,7 +377,7 @@ fig = px.line(by_date, x="mes_ano",
               title='Variação de preço das casas abaixo da média em suas regiões, durante o periodo de Maio de 2014 até maio de 2015')
 layout(fig)
 #--------------------------------------------------------------------------------------
-
+df = pd.read_csv('kc_definitivo.csv') 
 df = df.drop(['lat'], axis = 1)
 df = df.drop(['long'], axis = 1)
 df = df.drop(['sqft_above'], axis = 1)
@@ -308,6 +386,10 @@ df = df.drop(['level_value'], axis = 1)
 df = df.drop(['sqft_lot'], axis = 1)
 df = df.drop(['waterfront'], axis = 1)
 df = df.drop(['Quartis_price'], axis = 1)
+df= df.drop(['sqft_level'], axis = 1)
+df= df.drop(['zipcode_class'], axis = 1)
+
+df['zipcode'] = df['zipcode'].astype(str)
 
 
 label_encoder_zipcode = LabelEncoder()
@@ -369,12 +451,14 @@ mean_absolute_error(y_kc_teste, previsoes_arvore)
 
 regressor_random_kc = RandomForestRegressor(n_estimators = 100)
 regressor_random_kc.fit(x_kc_treinamento, y_kc_treinamento)
+regressor_random_kc.score(x_kc_treinamento, y_kc_treinamento)
 regressor_random_kc.score(x_kc_teste, y_kc_teste)
 previsoes_random = regressor_random_kc.predict(x_kc_teste)
 mean_absolute_error(y_kc_teste, previsoes_random)
 
 regressor_svr_kc = SVR(kernel='rbf')
 regressor_svr_kc.fit(x_kc_treinamento_scaled, y_kc_treinamento_scaled.ravel())
+regressor_svr_kc.score(x_kc_treinamento_scaled, y_kc_treinamento_scaled)
 regressor_svr_kc.score(x_kc_teste_scaled, y_kc_teste_scaled)
 previsoes = regressor_svr_kc.predict(x_kc_teste_scaled)
 previsoes = previsoes.reshape(-1, 1)
@@ -382,14 +466,22 @@ y_kc_teste_inverse = scaler_y_kc.inverse_transform(y_kc_teste_scaled)
 previsoes_inverse = scaler_y_kc.inverse_transform(previsoes)
 mean_absolute_error(y_kc_teste_inverse, previsoes_inverse)
 
-regressor_rna_kc = MLPRegressor(activation= 'relu',batch_size= 56, solver = 'sgd')
+regressor_rna_kc = MLPRegressor()
 regressor_rna_kc.fit(x_kc_treinamento_scaled, y_kc_treinamento_scaled.ravel())
+regressor_rna_kc.score(x_kc_treinamento_scaled, y_kc_treinamento_scaled)
 regressor_rna_kc.score(x_kc_teste_scaled, y_kc_teste_scaled)
 previsoes = regressor_rna_kc.predict(x_kc_teste_scaled)
 previsoes = previsoes.reshape(-1,1)
 y_kc_teste_inverse_rna = scaler_y_kc.inverse_transform(y_kc_teste_scaled)
 previsoes_inverse_rna = scaler_y_kc.inverse_transform(previsoes)
 mean_absolute_error(y_kc_teste_inverse_rna, previsoes_inverse_rna)
+
+primeiros_resultados = {'Modelos' : ['Regressão Linear', 'Regressão polinominal','Árvore de decisão', 'Random Forest Regressor', 'SVR', 'Rede neural'],
+'score treinamento': [0.81223, 0.92051, 0.99997, 0.97751, 0.85804, 0.95287 ],
+'score test': [0.80018, -196.89182, 0.62866, 0.79508, 0.79508, 0.85604],
+'mean absolute error': [94535.60, 210963.39, 115285.45, 82768.32, 75399.06, 86902.68]}
+
+primeiros_resultados = pd.DataFrame(primeiros_resultados)
 
 #--------------------------------------------------------------------------------------
 
@@ -482,3 +574,112 @@ resultados_df
 compara_algoritmos = MultiComparison(resultados_df['accuracy'], resultados_df['algoritmo'])
 teste_estatistico = compara_algoritmos.tukeyhsd()
 print(teste_estatistico)
+
+
+regressor_svr_kc = SVR(kernel='poly')
+regressor_svr_kc.fit(x_kc_treinamento_scaled, y_kc_treinamento_scaled.ravel())
+regressor_svr_kc.score(x_kc_treinamento_scaled, y_kc_treinamento_scaled)
+regressor_svr_kc.score(x_kc_teste_scaled, y_kc_teste_scaled)
+previsoes = regressor_svr_kc.predict(x_kc_teste_scaled)
+previsoes = previsoes.reshape(-1, 1)
+y_kc_teste_inverse = scaler_y_kc.inverse_transform(y_kc_teste_scaled)
+previsoes_inverse = scaler_y_kc.inverse_transform(previsoes)
+mean_absolute_error(y_kc_teste_inverse, previsoes_inverse)
+
+regressor_rna_kc = MLPRegressor(activation= 'relu',batch_size= 56, solver = 'sgd',max_iter=1000, hidden_layer_sizes=(9,9))
+regressor_rna_kc.fit(x_kc_treinamento_scaled, y_kc_treinamento_scaled.ravel())
+regressor_rna_kc.score(x_kc_treinamento_scaled, y_kc_treinamento_scaled)
+regressor_rna_kc.score(x_kc_teste_scaled, y_kc_teste_scaled)
+previsoes = regressor_rna_kc.predict(x_kc_teste_scaled)
+previsoes = previsoes.reshape(-1,1)
+y_kc_teste_inverse_rna = scaler_y_kc.inverse_transform(y_kc_teste_scaled)
+previsoes_inverse_rna = scaler_y_kc.inverse_transform(previsoes)
+mean_absolute_error(y_kc_teste_inverse_rna, previsoes_inverse_rna)
+
+regressor_rna_kc = MLPRegressor(activation= 'relu',batch_size= 56, solver = 'sgd',max_iter=1000, hidden_layer_sizes=(9,9))
+regressor_rna_kc.fit(x_kc_scaled, y_kc_scaled.ravel())
+regressor_rna_kc.score(x_kc_scaled, y_kc_scaled)
+regressor_rna_kc.score(x_kc_teste_scaled, y_kc_teste_scaled)
+previsoes = regressor_rna_kc.predict(x_kc_teste_scaled)
+previsoes = previsoes.reshape(-1,1)
+y_kc_teste_inverse_rna = scaler_y_kc.inverse_transform(y_kc_teste_scaled)
+previsoes_inverse_rna = scaler_y_kc.inverse_transform(previsoes)
+mean_absolute_error(y_kc_teste_inverse_rna, previsoes_inverse_rna)
+
+pickle.dump(regressor_rna_kc, open ('rede_neural_finalizado.sav', 'wb'))
+
+rede_neural = pickle.load(open('rede_neural_finalizado.sav','rb'))
+
+
+
+df.loc[1,'price']
+
+scaler_x_kc = StandardScaler()
+x_kc_scaled = scaler_x_kc.fit_transform(x_kc)
+scaler_y_kc = StandardScaler()
+y_kc_scaled = scaler_y_kc.fit_transform(y_kc.reshape(-1,1))
+
+regressor_rna_kc = MLPRegressor(activation= 'relu',batch_size= 56, solver = 'sgd',max_iter=1000, hidden_layer_sizes=(9,9))
+regressor_rna_kc.fit(x_kc_scaled, y_kc_scaled.ravel())
+regressor_rna_kc.score(x_kc_scaled, y_kc_scaled)
+regressor_rna_kc.score(x_kc_teste_scaled, y_kc_teste_scaled)
+previsoes = regressor_rna_kc.predict(x_kc_teste_scaled)
+previsoes = previsoes.reshape(-1,1)
+y_kc_teste_inverse_rna = scaler_y_kc.inverse_transform(y_kc_teste_scaled)
+previsoes_inverse_rna = scaler_y_kc.inverse_transform(previsoes)
+mean_absolute_error(y_kc_teste_inverse_rna, previsoes_inverse_rna)
+
+
+novo_registro = x_kc_scaled[0].reshape(1,-1)
+test = rede_neural.predict(novo_registro)
+test = test.reshape(1,-1)
+y_kc_scaled = scaler_y_kc.inverse_transform(y_kc_scaled)
+test = scaler_y_kc.inverse_transform(test)
+y_kc_scaled[1]
+
+x_kc_scaled
+df_definitivo= np.concatenate((x_kc_scaled, df.iloc[:,0:3]), axis = 1)
+
+df_definitivo = pd.DataFrame(df_definitivo)
+
+testes = regressor_rna_kc.predict(x_kc_scaled)
+testes = testes.reshape(1,-1)
+testes = scaler_y_kc.inverse_transform(testes)
+testes = testes.ravel()
+testes = pd.DataFrame(testes)
+
+df_definitivo[103]= testes
+
+for i in range(len(df_definitivo)):
+  if df_definitivo.loc[i,102] < df_definitivo.loc[i,103]:
+    df_definitivo.loc[i,104] = 'Abaixo'
+  else:
+    df_definitivo.loc[i,104] = 'Acima'  
+
+df.iloc[:,17:19]
+df_definitivo= np.concatenate((df_definitivo, df.iloc[:,17:19]), axis = 1)
+
+df_definitivo = pd.DataFrame(df_definitivo)
+
+mapa_oficial = px.scatter_mapbox(df_definitivo, lat=105,lon=106, hover_name = 102,
+                                 color = 104, 
+                                 labels = {'104' : 'Níveis de preço'}, 
+                                 title = 'Mapa com todas as casas, dividido por cores que variam do nivel 1 ao 5', 
+                                 template = 'plotly_dark',
+                                 color_discrete_sequence=['#e1cc55', '#123570'],
+                                 size_max=10,zoom=9)
+mapa_oficial.update_layout(mapbox_style = 'carto-darkmatter')
+mapa_oficial.update_layout(height = 700, width = 750, margin = {'r':0, 't':45, 'l':0, 'b':0})
+mapa_oficial.show() 
+
+df_definitivo = df_definitivo.rename(columns={100 : 'id',
+                        101 : 'data',
+                        102 : 'price',
+                        103 : 'previsao',
+                        104 : 'valor_casa'
+                        })
+
+abaixo = df_definitivo[df_definitivo.valor_casa == 'Abaixo']
+
+(abaixo['previsao'] - abaixo['price']).sum() 
+
