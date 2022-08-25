@@ -183,8 +183,8 @@ by_yrbuilt_Baixo = df[df.level_value == 'Baixo'][['price', 'yr_built']].groupby(
 
 df['sazonal'] = df['mes_ano'].apply(lambda x: 'prima-verão' if (x < '2014-08') or (x >  '2015-03') else
                                               'Out-inver')
-
-df.to_csv('kc_definitivo.csv', index=False) 
+sazonal = df[['price', 'sazonal']].groupby('sazonal').median().reset_index()
+# df.to_csv('kc_definitivo.csv', index=False) 
 
 #--------------------------------------------------------------------------------------
 
@@ -205,8 +205,7 @@ fig = px.bar(df_bath, x="bathrooms",
              labels={
                      'price': 'Preço das casas',
                      'bathrooms': 'Banheiros'}, 
-             title ='Preço Mediano das casas de acordo com o número de Banheiros'
- )
+             title ='Preço Mediano das casas de acordo com o número de Banheiros')
 layout(fig)
     
 hist(df,'grade')
@@ -219,10 +218,19 @@ hist(df,'Renoveted?')
 hist(df,'Basement?')
 hist(df,'sazonal')
 
+fig = px.bar(sazonal, x="sazonal", 
+             y='price', 
+             template = 'plotly_dark',
+             color_discrete_sequence=['#e1cc55', '#00224e'], 
+             labels={
+                     'price': 'Preço das casas',
+                     'bathrooms': 'Banheiros'}, 
+             title ='Preço Mediano das casas de acordo com a sazonalidade', text = 'price')
+layout(fig) 
 
- 
 fig = px.line(by_date_Baixo, x="mes_ano", y='price', title='Variação de preço das casas abaixo da média em suas regiões, durante o periodo de Maio de 2014 até maio de 2015')
 fig.show()
+
 fig = px.line(by_date_Alto, x="mes_ano", y='price', title='Variação de preço das casas acima da média em suas regiões, durante o periodo de Maio de 2014 até maio de 2015')
 fig.show()
 
@@ -345,9 +353,9 @@ layout(fig)
 
 fig = px.histogram(df, x='sqft_level', color="level_value", 
                    template = 'plotly_dark', 
-                   barmode = 'group', 
+                   barmode = 'group', width=760, 
                    color_discrete_sequence=['#e1cc55', '#123570'], 
-                   labels = {'sqft_level' : 'Nível do tamanho interno', 'level_value': 'Valor da Casa'}, title = 'Quantidade de casas acima e abaixo da mediana de acordo com o nível do tamanho interno')
+                   labels = {'sqft_level' : 'Nível do tamanho interno', 'level_value': 'Valor da Casa'}, title = 'Quantidade de casas acima e abaixo da mediana de acordo com o tamanho interno')
 layout(fig)
 
 fig = px.histogram(df, x='bedrooms', color="level_value", 
@@ -365,19 +373,17 @@ fig = px.histogram(df, x='view', color="level_value",
                    labels = {'view' : 'Nível da Vista', 'level_value': 'Valor da Casa'}, title = 'Quantidade de casas acima e abaixo da mediana de acordo com o nível da vista')
 layout(fig)
 
-
-
-
-df['Quartis_price']
 fig = px.line(by_date, x="mes_ano", 
-              y='price',
+              y='price', width=850,
               color_discrete_sequence=['#e1cc55', '#123570'], 
               template = 'plotly_dark',
               labels = {'price': 'Preço das Casas'},
-              title='Variação de preço das casas abaixo da média em suas regiões, durante o periodo de Maio de 2014 até maio de 2015')
+              title='Variação de preço médio das casas, durante o periodo de Maio de 2014 até maio de 2015')
 layout(fig)
 #--------------------------------------------------------------------------------------
 df = pd.read_csv('kc_definitivo.csv') 
+
+
 df = df.drop(['lat'], axis = 1)
 df = df.drop(['long'], axis = 1)
 df = df.drop(['sqft_above'], axis = 1)
@@ -622,21 +628,9 @@ y_kc_scaled = scaler_y_kc.fit_transform(y_kc.reshape(-1,1))
 regressor_rna_kc = MLPRegressor(activation= 'relu',batch_size= 56, solver = 'sgd',max_iter=1000, hidden_layer_sizes=(9,9))
 regressor_rna_kc.fit(x_kc_scaled, y_kc_scaled.ravel())
 regressor_rna_kc.score(x_kc_scaled, y_kc_scaled)
-regressor_rna_kc.score(x_kc_teste_scaled, y_kc_teste_scaled)
-previsoes = regressor_rna_kc.predict(x_kc_teste_scaled)
-previsoes = previsoes.reshape(-1,1)
-y_kc_teste_inverse_rna = scaler_y_kc.inverse_transform(y_kc_teste_scaled)
-previsoes_inverse_rna = scaler_y_kc.inverse_transform(previsoes)
-mean_absolute_error(y_kc_teste_inverse_rna, previsoes_inverse_rna)
-
-
-novo_registro = x_kc_scaled[0].reshape(1,-1)
-test = rede_neural.predict(novo_registro)
-test = test.reshape(1,-1)
 y_kc_scaled = scaler_y_kc.inverse_transform(y_kc_scaled)
-test = scaler_y_kc.inverse_transform(test)
-y_kc_scaled[1]
 
+x_kc.shape
 x_kc_scaled
 df_definitivo= np.concatenate((x_kc_scaled, df.iloc[:,0:3]), axis = 1)
 
@@ -661,13 +655,13 @@ df_definitivo= np.concatenate((df_definitivo, df.iloc[:,17:19]), axis = 1)
 
 df_definitivo = pd.DataFrame(df_definitivo)
 
-mapa_oficial = px.scatter_mapbox(df_definitivo, lat=105,lon=106, hover_name = 102,
-                                 color = 104, 
+mapa_oficial = px.scatter_mapbox(df_definitivo, lat=105,lon=106,
+                                 color = 'valor_casa', hover_name = 'price', 
                                  labels = {'104' : 'Níveis de preço'}, 
-                                 title = 'Mapa com todas as casas, dividido por cores que variam do nivel 1 ao 5', 
+                                 title = 'Mapa com todas as casas, dividido por casas abaixo e acima do preço', size= 'previsao', size_max= 15, 
                                  template = 'plotly_dark',
                                  color_discrete_sequence=['#e1cc55', '#123570'],
-                                 size_max=10,zoom=9)
+                                 zoom=9)
 mapa_oficial.update_layout(mapbox_style = 'carto-darkmatter')
 mapa_oficial.update_layout(height = 700, width = 750, margin = {'r':0, 't':45, 'l':0, 'b':0})
 mapa_oficial.show() 
@@ -683,3 +677,56 @@ abaixo = df_definitivo[df_definitivo.valor_casa == 'Abaixo']
 
 (abaixo['previsao'] - abaixo['price']).sum() 
 
+df_definitivo.dtypes
+
+df_definitivo['price'] = df_definitivo['price'].astype(float)
+df_definitivo['previsao'] = df_definitivo['previsao'].astype(float)
+
+df_zipcode.head(50)
+
+df1 = df
+df1_x_kc = df.iloc[:, 3:18]
+df1_y_kc = df.iloc[:, 2].values
+
+# df1_x_kc.loc[0,'sqft_living'] = 1950
+# df1_x_kc.loc[0,'bathrooms'] = 3
+# df1_x_kc.loc[0,'condition'] = 4
+# df1_x_kc.loc[0,'grade'] = 8
+# df1_x_kc.loc[0,'zipcode'] = '98115'
+df1_x_kc.loc[0,'bedrooms'] = 5
+
+
+
+df1_y_kc[0]
+df1_x_kc = df1_x_kc.values
+
+label_encoder_zipcode = LabelEncoder()
+label_encoder_Renovated = LabelEncoder()
+label_encoder_Basement = LabelEncoder()
+label_encoder_mes_ano = LabelEncoder()
+label_encoder_sazonal = LabelEncoder()
+label_encoder_waterfront = LabelEncoder()
+
+df1_x_kc[:,9] = label_encoder_zipcode.fit_transform(df1_x_kc[:,9])
+df1_x_kc[:,10] = label_encoder_Basement.fit_transform(df1_x_kc[:,10])
+df1_x_kc[:,11] = label_encoder_waterfront.fit_transform(df1_x_kc[:,11])
+df1_x_kc[:,12] = label_encoder_Renovated.fit_transform(df1_x_kc[:,12])
+df1_x_kc[:,13] = label_encoder_mes_ano.fit_transform(df1_x_kc[:,13])
+df1_x_kc[:,14] = label_encoder_sazonal.fit_transform(df1_x_kc[:,14])
+
+OneHotEncoder_hr = ColumnTransformer(transformers=[('Onehot', OneHotEncoder(), [9,10,11,12,13,14])], remainder = 'passthrough')
+df1_x_kc = OneHotEncoder_hr.fit_transform(df1_x_kc)
+df1_x_kc = df1_x_kc.toarray()
+
+scaler_x_kc = StandardScaler()
+df1_x_kc = scaler_x_kc.fit_transform(df1_x_kc)
+scaler_y_kc = StandardScaler()
+df1_y_kc = scaler_y_kc.fit_transform(df1_y_kc.reshape(-1,1))
+
+novo_registro = df1_x_kc[0].reshape(1,-1)
+test =  regressor_rna_kc.predict(novo_registro)
+test = test.reshape(1,-1)
+df1_y_kc = scaler_y_kc.inverse_transform(df1_y_kc)
+test = scaler_y_kc.inverse_transform(test)
+print(y_kc_scaled[0])
+print(test)
